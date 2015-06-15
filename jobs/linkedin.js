@@ -7,7 +7,7 @@
     SjCtrl.load({
       url: 'https://www.linkedin.com/company/1038',
       state: 'company_page',
-      block_regex_list: ['^.*\.png$']
+      block_regex_list: ['^.*\\.png$', '^.*\\.jpg$', '.*media.licdn.com.*']
     });
     SjCtrl.log_message('Raised Load Request');
     SjCtrl.log_message('Log from SjCtrl');
@@ -27,7 +27,7 @@
           page_count = page_count + 1;
           if(page_count > 5) {
             observer.disconnect();
-            SjCtrl.done();
+            //SjCtrl.done();
           }
         }
       });

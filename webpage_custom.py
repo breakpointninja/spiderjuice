@@ -3,7 +3,7 @@ import glob
 from access_manager import AccessManager
 from collections import namedtuple
 
-from PyQt5.QtCore import QSize, QObject, pyqtSlot, pyqtProperty, QUrl, pyqtSignal, QVariant
+from PyQt5.QtCore import QSize, QObject, pyqtSlot, pyqtProperty, QUrl, pyqtSignal, QVariant, Qt
 from PyQt5.QtWebKitWidgets import QWebPage
 
 import logging
@@ -93,12 +93,14 @@ class WebPageCustom(QWebPage):
     def reset(self):
         self.current_job = None
         self.mainFrame().setHtml("<html><head><title></title></head><body></body></html>")
+        self.access_manager.reset()
         self.job_finished.emit()
 
     def inject_job(self):
         if not self.current_job:
             return
 
+        logger.debug('Injecting Scripts')
         self.mainFrame().addToJavaScriptWindowObject("SjCtrl", self.control)
 
         for js_lib in self.get_js_lib_string():
@@ -125,6 +127,9 @@ class WebPageCustom(QWebPage):
 
         self.current_job = job
         self.control.state = self.current_job.state
+
+        if self.current_job.block_regex_list:
+            self.access_manager.setBlockingFilter(self.current_job.block_regex_list)
 
         if self.current_job.url:
             qurl = QUrl(self.current_job.url)
