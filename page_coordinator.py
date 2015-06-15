@@ -36,7 +36,7 @@ class PageCoordinator(QObject):
             self.webview = QWebView(self.main_window)
             self.main_window.setCentralWidget(self.webview)
             self.main_window.showFullScreen()
-            self.main_window.setWindowTitle("Webbingo Debug Window")
+            self.main_window.setWindowTitle("SpiderJuice Debug Window")
         else:
             self.parse_local_jobs()
             self.recalculate_timer = QTimer(self)

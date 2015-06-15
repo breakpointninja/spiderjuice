@@ -2,13 +2,13 @@
 
 (function() {
   'use strict';
-  var state = webbingo_control.get_state;
+  var state = sj_control.get_state;
   if (state === 'main') {
-    webbingo_control.load('https://www.linkedin.com/company/1038', 'company_page');
-    webbingo_control.log_message('Raised Load Request');
-    webbingo_control.done()
+    sj_control.load('https://www.linkedin.com/company/1038', 'company_page');
+    sj_control.log_message('Raised Load Request');
+    sj_control.done()
   } else if (state === 'company_page') {
-    webbingo_control.log_message('In Company Page State');
+    sj_control.log_message('In Company Page State');
 
     var page_count = 1;
 

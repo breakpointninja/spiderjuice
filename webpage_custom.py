@@ -12,7 +12,7 @@ from settings import BASE_PROJECT_DIR
 logger = logging.getLogger(__name__)
 
 
-class WebbingoControl(QObject):
+class JSControllerObject(QObject):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -65,7 +65,7 @@ class WebPageCustom(QWebPage):
         QWebPage.__init__(self, parent)
         self.current_job = None
         self.setViewportSize(size)
-        self.control = WebbingoControl(self)
+        self.control = JSControllerObject(self)
         self.mainFrame().javaScriptWindowObjectCleared.connect(lambda: logger.debug('javaScriptWindowObjectCleared in Main Frame'))
         self.loadFinished.connect(self.on_load_finished)
 
@@ -92,7 +92,7 @@ class WebPageCustom(QWebPage):
         for js_lib in self.get_js_lib_string():
             self.mainFrame().evaluateJavaScript(js_lib)
 
-        self.mainFrame().addToJavaScriptWindowObject("webbingo_control", self.control)
+        self.mainFrame().addToJavaScriptWindowObject("sj_control", self.control)
         with open(self.current_job.file, 'r') as job_file:
             self.mainFrame().evaluateJavaScript(job_file.read())
 
