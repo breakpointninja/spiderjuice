@@ -5,9 +5,13 @@
 
   SjCtrl.onState('main', function() {
     SjCtrl.load({
-      url: 'https://www.linkedin.com/company/1038',
-      state: 'company_page',
-      block_regex_list: ['^.*\\.png$', '^.*\\.jpg$', '.*media.licdn.com.*']
+        url: 'https://www.linkedin.com/company/1038',
+        state: 'company_page',
+        filter_list: [
+          'allow:www\\.linkedin\\.com',
+          'allow:static\\.licdn\\.com',
+          'reject:.*'
+        ]
     });
     SjCtrl.log_message('Raised Load Request');
     SjCtrl.log_message('Log from SjCtrl');

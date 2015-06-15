@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 
-class Job(namedtuple('Job', ['file', 'schedule', 'state', 'url', 'proxy_only_html', 'proxy', 'block_regex_list'])):
+class Job(namedtuple('Job', ['file', 'schedule', 'state', 'url', 'proxy_only_html', 'proxy', 'filter_list'])):
     def __new__(cls, **args):
         if not args:
             raise Exception('Empty job request')

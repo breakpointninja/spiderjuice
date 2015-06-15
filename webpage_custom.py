@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import glob
+from PyQt5.QtWebKit import QWebSettings
 from access_manager import AccessManager
 from collections import namedtuple
 
@@ -58,7 +59,31 @@ class WebPageCustom(QWebPage):
     job_finished = pyqtSignal()
     new_job = pyqtSignal(Job)
     controller_js_file = 'controller.js'
+    cache_directory_name = 'cache'
     js_lib_string_list = None
+    global_settings_set = False
+
+    @staticmethod
+    def setup_global_settings():
+        if not WebPageCustom.global_settings_set:
+            settings = QWebSettings.globalSettings()
+            settings.enablePersistentStorage('{base}/{cache}'.format(base=BASE_PROJECT_DIR, cache=WebPageCustom.cache_directory_name))
+            settings.setMaximumPagesInCache(1)
+            settings.setAttribute(QWebSettings.DnsPrefetchEnabled, False)
+            settings.setAttribute(QWebSettings.JavascriptEnabled, True)
+            settings.setAttribute(QWebSettings.JavaEnabled, False)
+            settings.setAttribute(QWebSettings.PluginsEnabled, False)
+            settings.setAttribute(QWebSettings.JavascriptCanOpenWindows, False)
+            settings.setAttribute(QWebSettings.JavascriptCanCloseWindows, False)
+            settings.setAttribute(QWebSettings.JavascriptCanAccessClipboard, False)
+            settings.setAttribute(QWebSettings.DeveloperExtrasEnabled, False)
+            settings.setAttribute(QWebSettings.SpatialNavigationEnabled, False)
+            settings.setAttribute(QWebSettings.OfflineStorageDatabaseEnabled, True)
+            settings.setAttribute(QWebSettings.OfflineWebApplicationCacheEnabled, True)
+            settings.setAttribute(QWebSettings.LocalStorageEnabled, True)
+            settings.setAttribute(QWebSettings.AcceleratedCompositingEnabled, False)
+            settings.setAttribute(QWebSettings.NotificationsEnabled, False)
+            WebPageCustom.global_settings_set = True
 
     @staticmethod
     def get_js_lib_string():
@@ -73,6 +98,7 @@ class WebPageCustom(QWebPage):
 
     def __init__(self, parent, size=QSize(1366, 768)):
         QWebPage.__init__(self, parent)
+        self.setup_global_settings()
         self.current_job = None
         self.setViewportSize(size)
         self.control = JSControllerObject(self)
@@ -128,8 +154,8 @@ class WebPageCustom(QWebPage):
         self.current_job = job
         self.control.state = self.current_job.state
 
-        if self.current_job.block_regex_list:
-            self.access_manager.setBlockingFilter(self.current_job.block_regex_list)
+        if self.current_job.filter_list:
+            self.access_manager.setFilter(self.current_job.filter_list)
 
         if self.current_job.url:
             qurl = QUrl(self.current_job.url)
