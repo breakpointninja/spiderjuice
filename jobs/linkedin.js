@@ -2,13 +2,18 @@
 
 (function() {
   'use strict';
-  var state = sj_control.get_state;
-  if (state === 'main') {
-    sj_control.load('https://www.linkedin.com/company/1038', 'company_page');
-    sj_control.log_message('Raised Load Request');
-    sj_control.done()
-  } else if (state === 'company_page') {
-    sj_control.log_message('In Company Page State');
+
+  SjCtrl.onState('main', function() {
+    SjCtrl.load({
+      url: 'https://www.linkedin.com/company/1038',
+      state: 'company_page',
+      block_regex_list: ['^.*\.png$']
+    });
+    SjCtrl.log_message('Raised Load Request');
+    SjCtrl.log_message('Log from SjCtrl');
+    SjCtrl.done();
+  }).onState('company_page', function() {
+    SjCtrl.log_message('In Company Page State');
 
     var page_count = 1;
 
@@ -20,8 +25,9 @@
           console.log('Triggering Click!');
           $('.view-more').trigger('click');
           page_count = page_count + 1;
-          if(page_count > 20) {
+          if(page_count > 5) {
             observer.disconnect();
+            SjCtrl.done();
           }
         }
       });
@@ -34,9 +40,6 @@
     observer.observe(target, config);
     console.log('Triggering Click!');
     $('.view-more').trigger('click');
-
-    // Later, you can stop observing
-    //observer.disconnect();
-  }
+  }).run();
 }).call(this);
 

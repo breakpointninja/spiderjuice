@@ -6,6 +6,7 @@ from PyQt5.QtCore import QObject, pyqtSlot, QTimer, Qt
 from PyQt5.QtWebKitWidgets import QWebView
 from PyQt5.QtWidgets import QMainWindow
 from croniter import croniter
+from job import Job
 from webpage_custom import WebPageCustom
 import queue
 from queue import Queue
@@ -55,7 +56,7 @@ class PageCoordinator(QObject):
             custom_webpage = self.web_views[0]
             self.webview.setPage(custom_webpage)
             self.main_window.show()
-            self.queue_new_job_file(debug_file)
+            self.queue_new_job(Job(file=debug_file))
 
     def parse_local_jobs(self):
         logger.debug('Parsing Local Jobs')
@@ -76,13 +77,9 @@ class PageCoordinator(QObject):
 
                 if self.schedule_key in job_conf:
                     job_conf['file'] = file
-                    self.job_list.append(job_conf)
+                    self.job_list.append(Job(**job_conf))
 
-    def queue_new_job_file(self, job_file, url=None, state=None):
-        job = WebPageCustom.Job(url=url, file=job_file, state=state)
-        self.queue_new_job(job)
-
-    @pyqtSlot(WebPageCustom.Job)
+    @pyqtSlot(Job)
     def queue_new_job(self, job):
         logger.debug('Got file {job} at {time}'.format(job=job, time=datetime.now()))
         try:
@@ -107,7 +104,7 @@ class PageCoordinator(QObject):
         logger.debug('Setting up schedule for next 15 min')
         now = datetime.now()
         for job in self.job_list:
-            cron_iter = croniter(job['schedule'], datetime.now())
+            cron_iter = croniter(job.schedule, datetime.now())
             for _ in range(self.job_limit):
                 next_job_time = cron_iter.get_next(datetime)
                 second_till_next_job = (next_job_time - now).total_seconds()
@@ -115,7 +112,8 @@ class PageCoordinator(QObject):
                 if second_till_next_job <= job_recalculate_seconds:
                     milliseconds = second_till_next_job * 1000
                     logger.debug('Starting QTimer in {}'.format(milliseconds))
-                    QTimer.singleShot(milliseconds, Qt.VeryCoarseTimer, lambda: self.queue_new_job_file(job['file']))
+                    QTimer.singleShot(milliseconds, Qt.VeryCoarseTimer, lambda: self.queue_new_job_file(job))
+                    QTimer.singleShot(milliseconds, Qt.VeryCoarseTimer, lambda: self.queue_new_job(job))
                 else:
                     break
 
