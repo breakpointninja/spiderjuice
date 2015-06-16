@@ -10,7 +10,13 @@ logger = logging.getLogger(__name__)
 class ProxyManager(QNetworkProxyFactory):
     no_proxy = (QNetworkProxy(),)
 
+    def __init__(self, access_manager):
+        super().__init__()
+        self.access_manager = access_manager
+
     def queryProxy(self, query=None, *args, **kwargs):
+        if self.access_manager.proxy is not None:
+            return self.access_manager.proxy
         return ProxyManager.no_proxy
 
 
@@ -23,12 +29,40 @@ class AccessManager(QNetworkAccessManager):
         super().__init__(parent)
 
         self.rule_list = []
-
-        self.proxy_factory = ProxyManager()
+        self.proxy = None
+        self.proxy_factory = ProxyManager(self)
         self.setProxyFactory(self.proxy_factory)
+
+    def setPageProxy(self, proxy_string, auth_string):
+        if not proxy_string:
+            return
+
+        pr = proxy_string.split(':', 1)
+        if len(pr) != 2:
+            logger.error('Invalid proxy string {}, auth {}'.format(proxy_string, auth_string))
+            return
+        host = pr[0]
+        port = int(pr[1])
+
+        if not (host and port):
+            logger.error('Invalid proxy string {}, auth {}'.format(proxy_string, auth_string))
+            return
+
+        if auth_string:
+            aus = auth_string.split(':', 1)
+            if len(aus) != 2:
+                logger.error('Invalid proxy string {}, auth {}'.format(proxy_string, auth_string))
+                return
+            user = aus[0]
+            pasw = aus[1]
+
+            self.proxy = [QNetworkProxy(QNetworkProxy.HttpProxy, host, port, user, pasw)]
+        else:
+            self.proxy = [QNetworkProxy(QNetworkProxy.HttpProxy, host, port)]
 
     def reset(self):
         self.rule_list = []
+        self.proxy = None
 
     def createRequest(self, operation, request, device):
         url_str = request.url().toString()

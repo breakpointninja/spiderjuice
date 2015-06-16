@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import glob
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PyQt5.QtWebKit import QWebSettings
 from access_manager import AccessManager
 from collections import namedtuple
@@ -16,26 +17,48 @@ logger = logging.getLogger(__name__)
 
 
 class JSControllerObject(QObject):
+    class Marker(QObject):
+        def __init__(self, callback_id):
+            self.callback_id = callback_id
+            super().__init__()
+
+        def get_callback_id(self):
+            return self.callback_id
+
+    http_request_finished = pyqtSignal(int, int, str)
+
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
+        self.network_manager = QNetworkAccessManager()
 
-    @pyqtSlot(str)
+    def http_response(self, callback_id, reply):
+        if reply.error() == 0:
+            data_str = reply.readAll().data().decode(encoding='UTF-8')
+            self.http_request_finished.emit(callback_id, reply.error(), data_str)
+        else:
+            self.http_request_finished.emit(callback_id, reply.error(), '')
+        reply.deleteLater()
+
+    @pyqtSlot(QVariant)
     def log_message(self, message):
         logger.info('js: {}'.format(message))
 
-    @pyqtSlot(str)
+    @pyqtSlot(QVariant)
     def log_error(self, message):
         logger.error('js: {}'.format(message))
 
-    @pyqtProperty(str)
-    def py_version(self):
-        logger.debug('Job {}: py_version'.format(self.parent.current_job))
-        return sys.version
+    @pyqtProperty(QVariant)
+    def job(self):
+        return self.parent.current_job.dict()
+
+    @pyqtSlot(int, str)
+    def http_request(self, callback_id, url):
+        qnetwork_reply = self.network_manager.get(QNetworkRequest(QUrl(url)))
+        qnetwork_reply.finished.connect(lambda: self.http_response(callback_id, qnetwork_reply))
 
     @pyqtProperty(str)
     def current_state(self):
-        logger.debug('Job {}: current_state'.format(self.parent.current_job))
         if self.parent.current_job.state:
             return self.parent.current_job.state
         else:
@@ -43,12 +66,10 @@ class JSControllerObject(QObject):
 
     @pyqtSlot()
     def done(self):
-        logger.debug('Job {}: done'.format(self.parent.current_job))
         self.parent.reset()
 
     @pyqtSlot(QVariant)
     def load(self, job_dict):
-        logger.debug('load: {}'.format(job_dict))
         if self.parent.current_job:
             self.parent.new_job.emit(self.parent.current_job.new_state(**job_dict))
         else:
@@ -100,10 +121,11 @@ class WebPageCustom(QWebPage):
         QWebPage.__init__(self, parent)
         self.setup_global_settings()
         self.current_job = None
+        self.injected = False
         self.setViewportSize(size)
         self.control = JSControllerObject(self)
-        self.mainFrame().javaScriptWindowObjectCleared.connect(lambda: logger.debug('javaScriptWindowObjectCleared in Main Frame'))
-        self.loadStarted.connect(lambda: logger.debug('Load started for {}'.format(self.current_job)))
+        # self.mainFrame().javaScriptWindowObjectCleared.connect(lambda: logger.debug('javaScriptWindowObjectCleared in Main Frame'))
+        # self.loadStarted.connect(lambda: logger.debug('Load started for {}'.format(self.current_job)))
         self.linkClicked.connect(lambda url: logger.debug('Link {} Clicked for {}'.format(url, self.current_job)))
         self.loadFinished.connect(self.on_load_finished)
 
@@ -118,6 +140,8 @@ class WebPageCustom(QWebPage):
 
     def reset(self):
         self.current_job = None
+        self.injected = False
+        self.settings().resetAttribute(QWebSettings.AutoLoadImages)
         self.mainFrame().setHtml("<html><head><title></title></head><body></body></html>")
         self.access_manager.reset()
         self.job_finished.emit()
@@ -125,6 +149,11 @@ class WebPageCustom(QWebPage):
     def inject_job(self):
         if not self.current_job:
             return
+
+        if self.injected:
+            return
+
+        self.injected = True
 
         logger.debug('Injecting Scripts')
         self.mainFrame().addToJavaScriptWindowObject("SjCtrl", self.control)
@@ -141,13 +170,12 @@ class WebPageCustom(QWebPage):
             return
 
         if not ok:
-            logger.error('Unable to load job {}'.format(self.current_job))
-            self.reset()
-            return
+            logger.warning('The load was unsuccessful. Injecting anyway: {}'.format(self.current_job))
+
         self.inject_job()
 
     def load_job(self, job):
-        logger.debug('New job request {}'.format(job))
+        logger.debug('Running job request {}'.format(job))
         if not job.file:
             logger.error('No Job file specified {}'.format(job))
 
@@ -156,6 +184,11 @@ class WebPageCustom(QWebPage):
 
         if self.current_job.filter_list:
             self.access_manager.setFilter(self.current_job.filter_list)
+
+        if self.current_job.block_images:
+            self.settings().setAttribute(QWebSettings.AutoLoadImages, False)
+
+        self.access_manager.setPageProxy(self.current_job.proxy, self.current_job.proxy_auth)
 
         if self.current_job.url:
             qurl = QUrl(self.current_job.url)

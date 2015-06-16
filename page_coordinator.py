@@ -81,7 +81,6 @@ class PageCoordinator(QObject):
 
     @pyqtSlot(Job)
     def queue_new_job(self, job):
-        logger.debug('Got file {job} at {time}'.format(job=job, time=datetime.now()))
         try:
             self.job_queue.put(job, block=False)
             self.distribute_jobs()
@@ -90,7 +89,6 @@ class PageCoordinator(QObject):
 
     @pyqtSlot()
     def distribute_jobs(self):
-        logger.debug('Distribute Jobs requests')
         if self.job_queue.empty():
             return
 
