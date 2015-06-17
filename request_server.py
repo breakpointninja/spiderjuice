@@ -33,16 +33,19 @@ class RequestServer(QObject):
         print("Server started at http://127.0.0.1:8080")
         return srv
 
+    def stop(self):
+        self.loop.run_until_complete(self.handler.finish_connections(1.0))
+        self.server.close()
+        self.loop.run_until_complete(self.server.wait_closed())
+        self.loop.run_until_complete(self.app.finish())
+
     def start_loop(self):
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
             pass
         finally:
-            self.loop.run_until_complete(self.handler.finish_connections(1.0))
-            self.server.close()
-            self.loop.run_until_complete(self.server.wait_closed())
-            self.loop.run_until_complete(self.app.finish())
+            self.stop()
 
     def start(self):
         if not self.started:

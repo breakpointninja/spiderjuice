@@ -30,6 +30,18 @@ class PageCoordinator(QObject):
         self.job_list = []
         self.job_queue = Queue(maxsize=queue_size)
 
+        for _ in range(self.instances):
+            wp = WebPageCustom(self)
+            wp.job_finished.connect(self.distribute_jobs)
+            wp.new_job_received.connect(self.queue_new_job)
+            self.web_views.append(wp)
+
+        if debug_file:
+            custom_webpage = self.web_views[0]
+            self.webview.setPage(custom_webpage)
+            self.main_window.show()
+            self.queue_new_job(Job(file=debug_file))
+
         if debug_file:
             # When in debugging mode we only load and single instance and show it to the user
             self.instances = 1
@@ -46,20 +58,8 @@ class PageCoordinator(QObject):
             self.recalculate_timer.start(self.job_recalculate_minutes * 60 * 1000)
             self.shedule_for_next_15_min()
 
-        for _ in range(self.instances):
-            wp = WebPageCustom(self)
-            wp.job_finished.connect(self.distribute_jobs)
-            wp.new_job.connect(self.queue_new_job)
-            self.web_views.append(wp)
-
-        if debug_file:
-            custom_webpage = self.web_views[0]
-            self.webview.setPage(custom_webpage)
-            self.main_window.show()
-            self.queue_new_job(Job(file=debug_file))
-
     def parse_local_jobs(self):
-        logger.debug('Parsing Local Jobs')
+        logger.info('Parsing Local Jobs')
         for file in glob.glob("{base}/jobs/*.js".format(base=BASE_PROJECT_DIR)):
             with open(file, encoding='utf-8', mode='r') as job_file:
                 job_conf = {}
@@ -93,15 +93,21 @@ class PageCoordinator(QObject):
             return
 
         for web_view in self.web_views:
+            if self.job_queue.empty():
+                return
+
             if not web_view.is_busy():
                 job = self.job_queue.get(block=False)
                 web_view.load_job(job)
 
     @pyqtSlot()
     def shedule_for_next_15_min(self):
-        logger.debug('Setting up schedule for next 15 min')
         now = datetime.now()
         for job in self.job_list:
+            if job.schedule == 'once':
+                self.queue_new_job(job)
+                continue
+
             cron_iter = croniter(job.schedule, datetime.now())
             for _ in range(self.job_limit):
                 next_job_time = cron_iter.get_next(datetime)
@@ -109,8 +115,6 @@ class PageCoordinator(QObject):
                 job_recalculate_seconds = self.job_recalculate_minutes * 60
                 if second_till_next_job <= job_recalculate_seconds:
                     milliseconds = second_till_next_job * 1000
-                    logger.debug('Starting QTimer in {}'.format(milliseconds))
-                    QTimer.singleShot(milliseconds, Qt.VeryCoarseTimer, lambda: self.queue_new_job_file(job))
                     QTimer.singleShot(milliseconds, Qt.VeryCoarseTimer, lambda: self.queue_new_job(job))
                 else:
                     break

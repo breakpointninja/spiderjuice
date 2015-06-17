@@ -1,4 +1,4 @@
-//!> schedule: */5 * * * *
+//!> schedule: once
 
 (function() {
   'use strict';
@@ -12,15 +12,16 @@
         SjCtrl.load({
           url: 'https://www.linkedin.com/company/' + company_req.linkedin_company,
           state: 'company_page',
-          /*filter_list: [
+          filter_list: [
            'allow:www\\.linkedin\\.com',
            'allow:static\\.licdn\\.com',
            'reject:.*'
-           ],*/
+           ],
           block_images: true,
           meta_data: company_req,
           proxy: 'paygo.crawlera.com:8010',
-          proxy_auth: 'contify:rXvX7FYcvs'
+          proxy_auth: 'contify:rXvX7FYcvs',
+          is_crawlera: true
         });
       }
       SjCtrl.done();
@@ -32,9 +33,12 @@
     });
 
     /*SjCtrl.load({
-      url: 'https://www.linkedin.com/company/729557',
+      url: 'https://www.linkedin.com/company/deloitte',
       state: 'company_page',
-      meta_data: {last_access_id: '321321321'}
+      meta_data: {last_access_id: '321321321'},
+      proxy: 'paygo.crawlera.com:8010',
+      proxy_auth: 'contify:rXvX7FYcvs',
+      block_images: true
     });
     SjCtrl.done();*/
 

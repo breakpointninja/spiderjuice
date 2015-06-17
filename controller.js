@@ -17,7 +17,7 @@
     if (SjCtrl.callbackMap.hasOwnProperty(state)) {
       var cb = SjCtrl.callbackMap[state];
       try {
-        cb(SjCtrl.job);
+        cb(SjCtrl.job_dict);
       } catch(e) {
         SjCtrl.log_error('Exception in job: ' + e.message);
         SjCtrl.done();
