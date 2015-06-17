@@ -67,6 +67,8 @@ class JSControllerObject(QObject):
             logger.error(self.prepend_id('Invalid State. done called when no current job'))
             return
 
+        logger.info(self.control.prepend_id('Done Job {}'.format(self.job())))
+
         self.parent.reset()
 
     @pyqtSlot()

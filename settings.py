@@ -18,8 +18,8 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'level': 'DEBUG',
-            'formatter': 'simple',
+            'level': 'INFO',
+            'formatter': 'detailed',
         },
     },
     'root': {
