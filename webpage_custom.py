@@ -4,12 +4,12 @@ from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PyQt5.QtWebKit import QWebSettings
 from access_manager import AccessManager
 
-from PyQt5.QtCore import QSize, QObject, pyqtSlot, pyqtProperty, QUrl, pyqtSignal, QVariant, Qt
+from PyQt5.QtCore import QSize, QObject, pyqtSlot, pyqtProperty, QUrl, pyqtSignal, QVariant, Qt, QTimer
 from PyQt5.QtWebKitWidgets import QWebPage
 
 import logging
 from job import Job
-from settings import BASE_PROJECT_DIR
+from settings import BASE_PROJECT_DIR, DEFAULT_JOB_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class JSControllerObject(QObject):
             logger.error(self.prepend_id('Invalid State. done called when no current job'))
             return
 
-        logger.info(self.control.prepend_id('Done Job {}'.format(self.job())))
+        logger.info(self.prepend_id('Done Job {}'.format(self.job())))
 
         self.parent.reset()
 
@@ -143,6 +143,13 @@ class WebPageCustom(QWebPage):
         self.injected = False
         self.setViewportSize(size)
         self.control = JSControllerObject(self)
+
+        self.timeout_timer = QTimer(self)
+        self.timeout_timer.setTimerType(Qt.VeryCoarseTimer)
+        self.timeout_timer.setSingleShot(True)
+        self.timeout_timer.setInterval(DEFAULT_JOB_TIMEOUT_SECONDS * 1000)
+        self.timeout_timer.timeout.connect(self.timeout)
+
         self.loadFinished.connect(self.on_load_finished)
         self.access_manager = AccessManager(self)
         self.setNetworkAccessManager(self.access_manager)
@@ -153,7 +160,12 @@ class WebPageCustom(QWebPage):
     def javaScriptConsoleMessage(self, message, line_number, source_id):
         logger.debug(self.control.prepend_id('console:{}:{}:{}'.format(source_id, line_number, message)))
 
+    def timeout(self):
+        logger.error(self.control.prepend_id('Job timed out in {}sec - {}'.format(DEFAULT_JOB_TIMEOUT_SECONDS, self.current_job)))
+        self.reset()
+
     def reset(self):
+        self.timeout_timer.stop()
         self.current_job = None
         self.injected = False
         self.settings().resetAttribute(QWebSettings.AutoLoadImages)
@@ -193,6 +205,8 @@ class WebPageCustom(QWebPage):
         logger.info(self.control.prepend_id('Job Request {}'.format(job)))
         if not job.file:
             logger.error(self.control.prepend_id('No Job file specified {}'.format(job)))
+
+        self.timeout_timer.start()
 
         self.current_job = job
 
