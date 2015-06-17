@@ -120,21 +120,21 @@ class AccessManager(QNetworkAccessManager):
                     else:
                         break
 
-        scheme = url.scheme()
-
-        if scheme == 'https':
-            url.setScheme('http')
-            request.setRawHeader(b'X-Crawlera-Use-HTTPS', b'1')
-            request.setSslConfiguration(QSslConfiguration())
-            request.setUrl(url)
-        elif scheme == 'http':
-            pass
-        else:
-            # We fail any request that is not http or https
-            logger.warning(self.control.prepend_id('Unsupported Schema {}'.format(url_str)))
-            return super().createRequest(operation, QNetworkRequest(QUrl()), device)
-
         if self.proxy and self.control.job().is_crawlera:
+            scheme = url.scheme()
+            if scheme == 'https':
+                url.setScheme('http')
+                request.setRawHeader(b'X-Crawlera-Use-HTTPS', b'1')
+                # TODO Check if this is needed
+                request.setSslConfiguration(QSslConfiguration())
+                request.setUrl(url)
+            elif scheme == 'http':
+                pass
+            else:
+                # We fail any request that is not http or https
+                logger.warning(self.control.prepend_id('Unsupported Schema {}'.format(url_str)))
+                return super().createRequest(operation, QNetworkRequest(QUrl()), device)
+
             key = bytes('{}:{}'.format(self.proxy.user(), self.proxy.password()), HTTP_HEADER_CHARSET)
             proxy_auth_value = b'Basic ' + base64.urlsafe_b64encode(key)
             request.setRawHeader(b'Proxy-Authorization', proxy_auth_value)
