@@ -25,8 +25,13 @@ class PageCoordinator(QObject):
 
     def __init__(self, instances, parent=None, debug_file=None, queue_size=1000):
         super().__init__(parent)
-        self.instances = instances
-        self.web_views = []
+        if debug_file:
+            # When in debugging mode we only load and single instance and show it to the user
+            self.instances = 1
+        else:
+            self.instances = instances
+
+        self.web_pages = []
         self.job_list = []
         self.job_queue = Queue(maxsize=queue_size)
 
@@ -34,22 +39,19 @@ class PageCoordinator(QObject):
             wp = WebPageCustom(self)
             wp.job_finished.connect(self.distribute_jobs)
             wp.new_job_received.connect(self.queue_new_job)
-            self.web_views.append(wp)
-
-        if debug_file:
-            custom_webpage = self.web_views[0]
-            self.webview.setPage(custom_webpage)
-            self.main_window.show()
-            self.queue_new_job(Job(file=debug_file))
+            self.web_pages.append(wp)
 
         if debug_file:
             # When in debugging mode we only load and single instance and show it to the user
-            self.instances = 1
+            custom_webpage = self.web_pages[0]
             self.main_window = QMainWindow()
-            self.webview = QWebView(self.main_window)
-            self.main_window.setCentralWidget(self.webview)
+            self.web_view = QWebView(self.main_window)
+            self.web_view.setPage(custom_webpage)
+            self.main_window.setCentralWidget(self.web_view)
             self.main_window.showFullScreen()
             self.main_window.setWindowTitle("SpiderJuice Debug Window")
+            self.main_window.show()
+            self.queue_new_job(Job(file=debug_file))
         else:
             self.parse_local_jobs()
             self.recalculate_timer = QTimer(self)
@@ -92,13 +94,13 @@ class PageCoordinator(QObject):
         if self.job_queue.empty():
             return
 
-        for web_view in self.web_views:
+        for web_page in self.web_pages:
             if self.job_queue.empty():
                 return
 
-            if not web_view.is_busy():
+            if not web_page.is_busy():
                 job = self.job_queue.get(block=False)
-                web_view.load_job(job)
+                web_page.load_job(job)
 
     @pyqtSlot()
     def shedule_for_next_15_min(self):

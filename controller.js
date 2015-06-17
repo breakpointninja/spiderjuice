@@ -47,11 +47,54 @@
     SjCtrl.httpRequestCallbackMap.removeAttribute(callback_id);
   };
 
-  SjCtrl.relativeToAbsolute = function(url) {
-        if (value.substr(0,1) !== "/") {
-          value = window.location.pathname + url;
+    SjCtrl.remove_undefined = function(obj) {
+        if (typeof obj === "undefined") {
+            return undefined;
         }
-        return window.location.origin + url;
+        if (obj instanceof Array) {
+            var new_obj = [];
+        } else {
+            var new_obj = {};
+        }
+        for (var property in obj) {
+            if (obj.hasOwnProperty(property)) {
+                if (typeof obj[property] === "object") {
+                    var ret = SjCtrl.remove_undefined(obj[property]);
+                    if (typeof ret === "undefined") {
+                        continue;
+                    }
+                    if (new_obj instanceof Array) {
+                        new_obj.push(ret);
+                    } else {
+                        new_obj[property] = ret;
+                    }
+                } else if (typeof obj[property] !== "undefined") {
+                    if (typeof obj[property] === "undefined") {
+                        continue;
+                    }
+                    if (new_obj instanceof Array) {
+                        new_obj.push(obj[property]);
+                    } else {
+                        new_obj[property] = obj[property];
+                    }
+                }
+            }
+        }
+        return new_obj;
+    };
+
+    SjCtrl.post_obj = function(url, obj) {
+        SjCtrl.post_request(url, JSON.stringify(SjCtrl.remove_undefined(obj)));
+    };
+
+  SjCtrl.relativeToAbsolute = function(href) {
+      if (typeof href === 'string' && href.length !== 0) {
+          var link = document.createElement("a");
+          link.href = href;
+          return (link.protocol + "//" + link.host + link.pathname + link.search + link.hash);
+      } else {
+          return href;
+      }
   };
 
   SjCtrl.http_request_finished.connect(SjCtrl, 'httpRequestCallback');

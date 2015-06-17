@@ -9,7 +9,7 @@ from PyQt5.QtWebKitWidgets import QWebPage
 
 import logging
 from job import Job
-from settings import BASE_PROJECT_DIR, DEFAULT_JOB_TIMEOUT_SECONDS
+from settings import BASE_PROJECT_DIR, DEFAULT_JOB_TIMEOUT_SECONDS, HTTP_HEADER_CHARSET
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,35 @@ class JSControllerObject(QObject):
         else:
             self.http_request_finished.emit(callback_id, reply.error(), '')
         reply.deleteLater()
+
+    def post_finished(self, network_reply):
+        error = network_reply.error()
+        url = network_reply.url()
+        url_str = url.toString()
+        if error != 0:
+            request = network_reply.request()
+
+            request_headers_string = 'Request:\n'
+            for header in request.rawHeaderList():
+                request_headers_string += '{}: {}\n'.format(header.data().decode(encoding=HTTP_HEADER_CHARSET), request.rawHeader(header).data().decode(encoding=HTTP_HEADER_CHARSET))
+
+            response_headers_string = 'Response:\n'
+            for header in network_reply.rawHeaderList():
+                response_headers_string += '{}: {}\n'.format(header.data().decode(encoding=HTTP_HEADER_CHARSET), network_reply.rawHeader(header).data().decode(encoding=HTTP_HEADER_CHARSET))
+
+            logger.error(self.prepend_id('e_id="{eid};{estr}" url="{url}"\n{req_h}\n{res_h}'.format(eid=error,
+                                                                                                            estr=network_reply.errorString(),
+                                                                                                            url=url_str,
+                                                                                                            req_h=request_headers_string,
+                                                                                                            res_h=response_headers_string)))
+        else:
+            logger.info('Post successful {}'.format(url_str))
+
+    @pyqtSlot(str, str)
+    def post_request(self, url, data):
+        logger.info("Posting request to {}".format(url))
+        network_reply = self.network_manager.post(QNetworkRequest(QUrl(url)), data.encode('UTF-8'))
+        network_reply.finished.connect(lambda: self.post_finished(network_reply))
 
     @pyqtSlot(QVariant)
     def log_message(self, message):
