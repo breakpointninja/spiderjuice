@@ -106,6 +106,7 @@ class AccessManager(QNetworkAccessManager):
                                                                                                             url=url_str,
                                                                                                             req_h=request_headers_string,
                                                                                                             res_h=response_headers_string)))
+            self.control.abort()
 
     def createRequest(self, operation, request, device=None):
         url = request.url()

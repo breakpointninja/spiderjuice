@@ -21,7 +21,8 @@
           meta_data: company_req,
           proxy: 'paygo.crawlera.com:8010',
           proxy_auth: 'contify:rXvX7FYcvs',
-          is_crawlera: true
+          is_crawlera: true,
+          timeout: 60
         });
       }
       SjCtrl.done();

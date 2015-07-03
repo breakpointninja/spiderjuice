@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import glob
 from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkRequest
-from PyQt5.QtWebKit import QWebSettings
+from PyQt5.QtWebKit import QWebSettings, QWebElement
 from access_manager import AccessManager
 
 from PyQt5.QtCore import QSize, QObject, pyqtSlot, pyqtProperty, QUrl, pyqtSignal, QVariant, Qt, QTimer
@@ -9,25 +9,25 @@ from PyQt5.QtWebKitWidgets import QWebPage
 
 import logging
 from job import Job
-from settings import BASE_PROJECT_DIR, DEFAULT_JOB_TIMEOUT_SECONDS, HTTP_HEADER_CHARSET
+from settings import BASE_PROJECT_DIR, DEFAULT_JOB_TIMEOUT_SECONDS, HTTP_HEADER_CHARSET, MAX_RETRIES
 
 logger = logging.getLogger(__name__)
 
 
 class JSControllerObject(QObject):
-    http_request_finished = pyqtSignal(int, int, str)
+    http_request_finished = pyqtSignal(QWebElement, int, str)
 
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
         self.network_manager = QNetworkAccessManager()
 
-    def http_response(self, callback_id, reply):
+    def http_response(self, callback_element, reply):
         if reply.error() == 0:
             data_str = reply.readAll().data().decode(encoding='UTF-8')
-            self.http_request_finished.emit(callback_id, reply.error(), data_str)
+            self.http_request_finished.emit(callback_element, reply.error(), data_str)
         else:
-            self.http_request_finished.emit(callback_id, reply.error(), '')
+            self.http_request_finished.emit(callback_element, reply.error(), '')
         reply.deleteLater()
 
     def post_finished(self, network_reply):
@@ -56,7 +56,9 @@ class JSControllerObject(QObject):
     @pyqtSlot(str, str)
     def post_request(self, url, data):
         logger.info("Posting request to {}".format(url))
-        network_reply = self.network_manager.post(QNetworkRequest(QUrl(url)), data.encode('UTF-8'))
+        req = QNetworkRequest(QUrl(url))
+        req.setHeader(QNetworkRequest.ContentTypeHeader, 'application/json')
+        network_reply = self.network_manager.post(req, data.encode('UTF-8'))
         network_reply.finished.connect(lambda: self.post_finished(network_reply))
 
     @pyqtSlot(QVariant)
@@ -74,14 +76,14 @@ class JSControllerObject(QObject):
     def job(self):
         return self.parent.current_job
 
-    @pyqtSlot(int, str)
-    def http_request(self, callback_id, url):
+    @pyqtSlot(int, QWebElement)
+    def http_request(self, callback_element, url):
         if not self.parent.current_job:
             logger.error(self.prepend_id('Invalid State. http_request called when no current job'))
             return
 
         qnetwork_reply = self.network_manager.get(QNetworkRequest(QUrl(url)))
-        qnetwork_reply.finished.connect(lambda: self.http_response(callback_id, qnetwork_reply))
+        qnetwork_reply.finished.connect(lambda: self.http_response(callback_element, qnetwork_reply))
 
     @pyqtProperty(str)
     def current_state(self):
@@ -99,6 +101,7 @@ class JSControllerObject(QObject):
         logger.info(self.prepend_id('Done Job {}'.format(self.job())))
 
         self.parent.reset()
+        self.parent.job_finished.emit()
 
     @pyqtSlot()
     def abort(self):
@@ -106,8 +109,16 @@ class JSControllerObject(QObject):
             logger.error(self.prepend_id('Invalid State. abort called when no current job'))
             return
 
-        logger.error(self.prepend_id('Job aborted {}'.format(self.job())))
+        logger.error(self.prepend_id('Job aborting {}'.format(self.job())))
+        retry_job = self.job().get_retry_job()
+        if retry_job.retry <= MAX_RETRIES:
+            logger.info(self.prepend_id('Retrying Job:{}'.format(retry_job)))
+            self.parent.new_job_received.emit(retry_job)
+        else:
+            logger.error(self.prepend_id('Max Retries reached:{}'.format(retry_job)))
+
         self.parent.reset()
+        self.parent.job_finished.emit()
 
     def prepend_id(self, message):
         return '[{}] {}'.format(self.parent.id, message)
@@ -173,6 +184,8 @@ class WebPageCustom(QWebPage):
         self.setViewportSize(size)
         self.control = JSControllerObject(self)
 
+        self.mainFrame().javaScriptWindowObjectCleared.connect(lambda: logger.debug(self.control.prepend_id('javaScriptWindowObjectCleared')))
+
         self.timeout_timer = QTimer(self)
         self.timeout_timer.setTimerType(Qt.VeryCoarseTimer)
         self.timeout_timer.setSingleShot(True)
@@ -187,20 +200,20 @@ class WebPageCustom(QWebPage):
         return bool(self.current_job)
 
     def javaScriptConsoleMessage(self, message, line_number, source_id):
-        logger.debug(self.control.prepend_id('console:{}:{}:{}'.format(source_id, line_number, message)))
+        logger.info(self.control.prepend_id('console:{}:{}:{}'.format(source_id, line_number, message)))
 
     def timeout(self):
         logger.error(self.control.prepend_id('Job timed out in {}sec - {}'.format(DEFAULT_JOB_TIMEOUT_SECONDS, self.current_job)))
-        self.reset()
+        self.control.abort()
 
     def reset(self):
         self.timeout_timer.stop()
+        self.timeout_timer.setInterval(DEFAULT_JOB_TIMEOUT_SECONDS * 1000)
         self.current_job = None
         self.injected = False
         self.settings().resetAttribute(QWebSettings.AutoLoadImages)
-        self.mainFrame().setHtml("<html><head><title></title></head><body></body></html>")
+        self.mainFrame().setUrl(QUrl('file://' + BASE_PROJECT_DIR + '/blank.html'))
         self.access_manager.reset()
-        self.job_finished.emit()
 
     def inject_job(self):
         if not self.current_job:
@@ -234,6 +247,8 @@ class WebPageCustom(QWebPage):
         logger.info(self.control.prepend_id('Job Request {}'.format(job)))
         if not job.file:
             logger.error(self.control.prepend_id('No Job file specified {}'.format(job)))
+        if job.timeout:
+            self.timeout_timer.setInterval(job.timeout * 1000)
 
         self.timeout_timer.start()
 
@@ -252,8 +267,9 @@ class WebPageCustom(QWebPage):
             if not qurl.isValid():
                 logger.error(self.control.prepend_id('Invalid URL {}'.format(self.current_job.url)))
                 self.reset()
+                self.job_finished.emit()
                 return
 
-            self.mainFrame().load(qurl)
+            self.mainFrame().setUrl(qurl)
         else:
             self.inject_job()

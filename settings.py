@@ -31,3 +31,5 @@ LOGGING = {
 # Technically this should only be the default and we should use the encoding specified in the http header
 HTTP_HEADER_CHARSET = 'ISO-8859-8'
 DEFAULT_JOB_TIMEOUT_SECONDS = 300
+
+MAX_RETRIES = 5

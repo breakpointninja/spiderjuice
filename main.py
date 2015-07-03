@@ -38,7 +38,7 @@ if __name__ == '__main__':
     if args.scriptdebug:
         debug_file = os.path.abspath(args.scriptdebug)
 
-    pc = PageCoordinator(1, debug_file=debug_file)
+    pc = PageCoordinator(10, debug_file=debug_file)
 
     # We don't need to specify QueuedConnection because that will happen by default when
     # the request comes from another thread. We are just making it explicit to the reader that this will happen.
