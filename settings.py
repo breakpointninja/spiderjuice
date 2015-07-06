@@ -29,10 +29,20 @@ LOGGING = {
             'when': 'midnight',
             'backupCount': 60,
         },
+        'mail': {
+            'class': 'logging.handlers.SMTPHandler',
+            'level': 'ERROR',
+            'mailhost': 'smtp.gmail.com',
+            'fromaddr': 'sitesadmin@contify.com',
+            'toaddrs': 'rahul.verma@contify.com',
+            'subject': 'Error in Spiderjuice',
+            'credentials': ('sitesadmin@contify.com', 'Cont1fy#2013'),
+            'secure': ()
+        }
     },
     'root': {
         'level': 'INFO',
-        'handlers': ['file']
+        'handlers': ['file', 'mail']
     },
 }
 
