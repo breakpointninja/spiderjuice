@@ -1,4 +1,12 @@
 import os
+import platform
+
+PRODUCTION = False
+
+hostname = platform.uname()[1]
+if hostname == 'linode-contify':
+    PRODUCTION = True
+
 
 BASE_PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -42,7 +50,7 @@ LOGGING = {
     },
     'root': {
         'level': 'INFO',
-        'handlers': ['file', 'mail']
+        'handlers': ['file', 'mail'] if PRODUCTION else ['file']
     },
 }
 

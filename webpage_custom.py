@@ -210,7 +210,7 @@ class WebPageCustom(QWebPage):
         logger.info(self.control.prepend_id('console:{}:{}:{}'.format(source_id, line_number, message)))
 
     def timeout(self):
-        logger.error(self.control.prepend_id('Job timed out in {}sec - {}'.format(DEFAULT_JOB_TIMEOUT_SECONDS, self.current_job)))
+        logger.error(self.control.prepend_id('Job timed out in {}sec - {}'.format(self.current_job.timeout or DEFAULT_JOB_TIMEOUT_SECONDS, self.current_job)))
         self.control.abort()
 
     def reset(self):

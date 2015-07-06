@@ -6,6 +6,9 @@ from PyQt5.QtCore import QObject, pyqtSlot, QTimer, Qt
 from PyQt5.QtWebKitWidgets import QWebView
 from PyQt5.QtWidgets import QMainWindow
 from croniter import croniter
+import gc
+import os
+import psutil
 from job import Job
 from webpage_custom import WebPageCustom
 import queue
@@ -91,6 +94,7 @@ class PageCoordinator(QObject):
 
     @pyqtSlot()
     def distribute_jobs(self):
+        self.check_no_work()
         if self.job_queue.empty():
             return
 
@@ -101,6 +105,19 @@ class PageCoordinator(QObject):
             if not web_page.is_busy():
                 job = self.job_queue.get(block=False)
                 web_page.load_job(job)
+
+    def check_no_work(self):
+        if not self.job_queue.empty():
+            return
+        for web_page in self.web_pages:
+            if web_page.is_busy():
+                return
+
+        # Means that nothing is running
+        proc = psutil.Process(os.getpid())
+        logger.info('Running Garbage Collector. {}: {}'.format(proc.memory_percent(), proc.memory_info()))
+        gc.collect()
+        logger.info('After Garbage Collector. {}: {}'.format(proc.memory_percent(), proc.memory_info()))
 
     @pyqtSlot()
     def shedule_for_next_15_min(self):
