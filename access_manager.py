@@ -83,6 +83,9 @@ class AccessManager(QNetworkAccessManager):
         self.proxy = None
 
     def request_finished(self, network_reply):
+        if not self.control.job():
+            return
+
         error = network_reply.error()
         url = network_reply.url()
         url_str = url.toString()
@@ -109,6 +112,9 @@ class AccessManager(QNetworkAccessManager):
             self.control.abort()
 
     def createRequest(self, operation, request, device=None):
+        if not self.control.job():
+            return super().createRequest(operation, request, device)
+
         url = request.url()
         url_str = url.toString()
 
@@ -121,7 +127,7 @@ class AccessManager(QNetworkAccessManager):
                     else:
                         break
 
-        if self.proxy and self.control.job().is_crawlera:
+        if self.proxy and self.control.job() and self.control.job().is_crawlera:
             scheme = url.scheme()
             if scheme == 'https':
                 url.setScheme('http')

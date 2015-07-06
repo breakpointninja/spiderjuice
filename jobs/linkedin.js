@@ -5,6 +5,22 @@
 
   SjCtrl.onState('main', function(job) {
     SjCtrl.getJson('http://sites.contify.com/social_peek/api/getlinkedindata/', function(data) {
+      /*SjCtrl.load({
+        url: 'https://www.linkedin.com/company/' + '1038',
+        state: 'company_page',
+        filter_list: [
+          'allow:www\\.linkedin\\.com',
+          'allow:static\\.licdn\\.com',
+          'reject:.*'
+        ],
+        block_images: true,
+        meta_data: {'last_access_id': '123321', 'search_keyword_id': '12321321'},
+        proxy: 'paygo.crawlera.com:8010',
+        proxy_auth: 'contify:rXvX7FYcvs',
+        is_crawlera: true,
+        timeout: 120
+      });*/
+
       var result = data.result, id;
       for (id in result) {
         var company_req = result[id];
@@ -32,17 +48,6 @@
     }, function() {
       console.log('Always');
     });
-
-    /*SjCtrl.load({
-     url: 'https://www.linkedin.com/company/deloitte',
-     state: 'company_page',
-     meta_data: {last_access_id: '321321321'},
-     proxy: 'paygo.crawlera.com:8010',
-     proxy_auth: 'contify:rXvX7FYcvs',
-     block_images: true
-     });
-     SjCtrl.done();*/
-
   }).onState('company_page', function(job) {
     SjCtrl.log_message(job);
     var page_count = 1,

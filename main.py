@@ -15,11 +15,6 @@ from request_server import RequestServer
 logger = logging.getLogger(__name__)
 
 
-def sigint_handler(re_s, *s_args):
-    """Handler for the SIGINT signal."""
-    #re_s.stop()
-    QApplication.quit()
-
 if __name__ == '__main__':
     logging.config.dictConfig(settings.LOGGING)
 
@@ -30,7 +25,7 @@ if __name__ == '__main__':
     rq = RequestServer()
     #rq.start()
 
-    signal.signal(signal.SIGINT, lambda *s_args: sigint_handler(rq, *s_args))
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     a = QApplication(sys.argv)
 

@@ -2,6 +2,7 @@
   'use strict';
 
   SjCtrl.callbackMap = {};
+  SjCtrl.httpRequestCallbackMap = {};
   SjCtrl.httpRequestGenerate = 1;
   SjCtrl.onState = function(state, callback) {
     if (!state) {
@@ -28,16 +29,21 @@
   };
 
   SjCtrl.getJson = function(url, success_callback, failure_callback, always_callback) {
-    SjCtrl.http_request([success_callback, failure_callback, always_callback], url);
+    SjCtrl.httpRequestGenerate = SjCtrl.httpRequestGenerate + 1;
+    SjCtrl.http_request(SjCtrl.httpRequestGenerate, url);
+    SjCtrl.httpRequestCallbackMap[SjCtrl.httpRequestGenerate] = [success_callback, failure_callback, always_callback];
   };
 
-  SjCtrl.httpRequestCallback = function(callback, error_id, data) {
+  SjCtrl.httpRequestCallback = function(callback_id, error_id, data) {
+    var callback = SjCtrl.httpRequestCallbackMap[callback_id];
     if (error_id === 0) {
       callback[0](JSON.parse(data));
     } else {
       callback[1](error_id);
     }
     callback[2]();
+
+    SjCtrl.httpRequestCallbackMap.removeAttribute(callback_id);
   };
 
   SjCtrl.remove_undefined = function(obj) {

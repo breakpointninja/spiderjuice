@@ -15,19 +15,22 @@ logger = logging.getLogger(__name__)
 
 
 class JSControllerObject(QObject):
-    http_request_finished = pyqtSignal(QWebElement, int, str)
+    http_request_finished = pyqtSignal(int, int, str)
 
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
         self.network_manager = QNetworkAccessManager()
 
-    def http_response(self, callback_element, reply):
+    def http_response(self, callback_id, reply):
+        if not self.job():
+            return
+
         if reply.error() == 0:
             data_str = reply.readAll().data().decode(encoding='UTF-8')
-            self.http_request_finished.emit(callback_element, reply.error(), data_str)
+            self.http_request_finished.emit(callback_id, reply.error(), data_str)
         else:
-            self.http_request_finished.emit(callback_element, reply.error(), '')
+            self.http_request_finished.emit(callback_id, reply.error(), '')
         reply.deleteLater()
 
     def post_finished(self, network_reply):
@@ -55,6 +58,10 @@ class JSControllerObject(QObject):
 
     @pyqtSlot(str, str)
     def post_request(self, url, data):
+        if not self.job():
+            logger.error(self.prepend_id('Invalid State. post_request called when no current job'))
+            return
+
         logger.info("Posting request to {}".format(url))
         req = QNetworkRequest(QUrl(url))
         req.setHeader(QNetworkRequest.ContentTypeHeader, 'application/json')
@@ -76,14 +83,14 @@ class JSControllerObject(QObject):
     def job(self):
         return self.parent.current_job
 
-    @pyqtSlot(int, QWebElement)
-    def http_request(self, callback_element, url):
+    @pyqtSlot(int, str)
+    def http_request(self, callback_id, url):
         if not self.parent.current_job:
             logger.error(self.prepend_id('Invalid State. http_request called when no current job'))
             return
 
         qnetwork_reply = self.network_manager.get(QNetworkRequest(QUrl(url)))
-        qnetwork_reply.finished.connect(lambda: self.http_response(callback_element, qnetwork_reply))
+        qnetwork_reply.finished.connect(lambda: self.http_response(callback_id, qnetwork_reply))
 
     @pyqtProperty(str)
     def current_state(self):
@@ -207,13 +214,13 @@ class WebPageCustom(QWebPage):
         self.control.abort()
 
     def reset(self):
-        self.timeout_timer.stop()
-        self.timeout_timer.setInterval(DEFAULT_JOB_TIMEOUT_SECONDS * 1000)
         self.current_job = None
         self.injected = False
-        self.settings().resetAttribute(QWebSettings.AutoLoadImages)
-        self.mainFrame().setUrl(QUrl('file://' + BASE_PROJECT_DIR + '/blank.html'))
+        self.timeout_timer.stop()
+        self.timeout_timer.setInterval(DEFAULT_JOB_TIMEOUT_SECONDS * 1000)
         self.access_manager.reset()
+        self.mainFrame().setUrl(QUrl('file://' + BASE_PROJECT_DIR + '/blank.html'))
+        self.settings().resetAttribute(QWebSettings.AutoLoadImages)
 
     def inject_job(self):
         if not self.current_job:
@@ -239,7 +246,8 @@ class WebPageCustom(QWebPage):
             return
 
         if not ok:
-            logger.warning(self.control.prepend_id('The load was unsuccessful. Injecting anyway: {}'.format(self.current_job)))
+            logger.warning(self.control.prepend_id('The load was unsuccessful. Not Injecting: {}'.format(self.current_job)))
+            return
 
         self.inject_job()
 
