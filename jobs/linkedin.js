@@ -38,7 +38,7 @@
           proxy: 'paygo.crawlera.com:8010',
           proxy_auth: 'contify:rXvX7FYcvs',
           is_crawlera: true,
-          timeout: 60
+          timeout: 120
         });
       }
       SjCtrl.done();
