@@ -37,7 +37,7 @@ PYENV_PATH=$(pwd)
 # Download python
 #################################################################
 if [ ! -f "Python-${PYTHON_VERSION}.tar.xz" ]; then
-    aria2c -c --allow-overwrite=true -k 20M -j5 -s5 https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz -o python-${PYTHON_VERSION}.new  && mv python-${PYTHON_VERSION}.new Python-${PYTHON_VERSION}.tar.xz
+    aria2c -c --allow-overwrite=true -k 20M -k1M -x5 https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz -o python-${PYTHON_VERSION}.new  && mv python-${PYTHON_VERSION}.new Python-${PYTHON_VERSION}.tar.xz
 fi
 
 #################################################################
@@ -85,10 +85,10 @@ if [ ${EXISTS} -ne 0 ]; then
     cd packages
     PACKAGES_DIRECTORY=$(pwd)
     if [ ! -f "PyQt.tar.gz" ]; then
-        aria2c -c --allow-overwrite=true -k 20M -j5 -s5 http://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.4.2/PyQt-gpl-5.4.2.tar.gz -o PyQt.tar.gz.new && mv PyQt.tar.gz.new PyQt.tar.gz
+        aria2c -c --allow-overwrite=true -k1M -x5 http://sourceforge.net/projects/pyqt/files/PyQt5/PyQt-5.4.2/PyQt-gpl-5.4.2.tar.gz -o PyQt.tar.gz.new && mv PyQt.tar.gz.new PyQt.tar.gz
     fi
     if [ ! -f "sip.tar.gz" ]; then
-        aria2c -c --allow-overwrite=true -k 20M -j5 -s5 http://sourceforge.net/projects/pyqt/files/sip/sip-4.16.8/sip-4.16.8.tar.gz -o sip.tar.gz.new && mv sip.tar.gz.new sip.tar.gz
+        aria2c -c --allow-overwrite=true -k1M -x5 http://sourceforge.net/projects/pyqt/files/sip/sip-4.16.8/sip-4.16.8.tar.gz -o sip.tar.gz.new && mv sip.tar.gz.new sip.tar.gz
     fi
 
     if [ ! -d "PyQt-gpl-5.4.2" ]; then

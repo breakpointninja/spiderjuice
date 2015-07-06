@@ -1,4 +1,4 @@
-//!> schedule: once
+//!> schedule: 0 * * * *
 
 (function() {
   'use strict';

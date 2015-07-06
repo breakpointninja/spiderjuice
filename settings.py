@@ -21,10 +21,18 @@ LOGGING = {
             'level': 'DEBUG',
             'formatter': 'detailed',
         },
+        'file': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'level': 'DEBUG',
+            'filename': os.path.join(BASE_PROJECT_DIR, 'logs/spiderjuice.log'),
+            'formatter': 'detailed',
+            'when': 'midnight',
+            'backupCount': 60,
+        },
     },
     'root': {
         'level': 'INFO',
-        'handlers': ['console']
+        'handlers': ['file']
     },
 }
 
