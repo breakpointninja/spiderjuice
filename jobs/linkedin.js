@@ -24,6 +24,11 @@
       var result = data.result, id;
       for (id in result) {
         var company_req = result[id];
+
+        if(typeof company_req.linkedin_company === 'undefined'){
+          continue;
+        }
+
         SjCtrl.log_message(company_req);
         SjCtrl.load({
           url: 'https://www.linkedin.com/company/' + company_req.linkedin_company,
