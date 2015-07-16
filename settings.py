@@ -50,7 +50,7 @@ LOGGING = {
     },
     'root': {
         'level': 'INFO',
-        'handlers': ['file', 'mail'] if PRODUCTION else ['file']
+        'handlers': ['file'] if PRODUCTION else ['file']
     },
 }
 
