@@ -4,28 +4,32 @@
   'use strict';
 
   SjCtrl.onState('main', function(job) {
-    SjCtrl.getJson('http://sites.contify.com/social_peek/api/getlinkedindata/', function(data) {
-      /*SjCtrl.load({
-        url: 'https://www.linkedin.com/company/' + '1038',
-        state: 'company_page',
-        filter_list: [
-          'allow:www\\.linkedin\\.com',
-          'allow:static\\.licdn\\.com',
-          'reject:.*'
-        ],
-        block_images: true,
-        meta_data: {'last_access_id': '123321', 'search_keyword_id': '12321321'},
-        proxy: 'paygo.crawlera.com:8010',
-        proxy_auth: 'contify:rXvX7FYcvs',
-        is_crawlera: true,
-        timeout: 120
-      });*/
 
+    /*
+     SjCtrl.load({
+     url: 'https://www.linkedin.com/company/' + 'strongview',
+     state: 'company_page',
+     filter_list: [
+     'allow:www\\.linkedin\\.com',
+     'allow:static\\.licdn\\.com',
+     'reject:.*'
+     ],
+     block_images: true,
+     meta_data: {'last_access_id': '123321', 'search_keyword_id': '12321321'},
+     proxy: 'paygo.crawlera.com:8010',
+     proxy_auth: 'contify:rXvX7FYcvs',
+     is_crawlera: true,
+     timeout: 120
+     });
+     SjCtrl.done();
+     */
+
+    SjCtrl.getJson('http://sites.contify.com/social_peek/api/getlinkedindata/', function(data) {
       var result = data.result, id;
       for (id in result) {
         var company_req = result[id];
 
-        if(typeof company_req.linkedin_company === 'undefined'){
+        if (typeof company_req.linkedin_company === 'undefined') {
           continue;
         }
 
@@ -53,23 +57,36 @@
     }, function() {
       console.log('Always');
     });
+
   }).onState('company_page', function(job) {
-    SjCtrl.log_message(job);
     var page_count = 1,
       max_page_count = 10,
       done = false,
-      last_access_id = '',
-      feed = $("#feed-show-more"),
-      view_more = $('.view-more');
+      last_access_id = getRequestedLastAccessId(job),
+      show_more_updates_button = $("#feed-show-more"),
+      show_more_updates_span = $('.view-more');
 
-    if (job.meta_data.hasOwnProperty('last_access_id')) {
-      last_access_id = job.meta_data.last_access_id;
-      if (last_access_id.substr(0, 1) === 's') {
-        last_access_id = last_access_id.substr(1);
+    SjCtrl.log_message(job);
+
+    function getRequestedLastAccessId(job) {
+      var last_access_id = '';
+      if (job.meta_data.hasOwnProperty('last_access_id')) {
+        last_access_id = job.meta_data.last_access_id;
+        if (last_access_id.substr(0, 1) === 's') {
+          last_access_id = last_access_id.substr(1);
+        }
       }
+      return last_access_id;
     }
 
-    SjCtrl.log_message('last_access_id=' + last_access_id);
+    function isLastAccessIdPresentInPage() {
+      if (last_access_id === '') {
+        return false;
+      }
+
+      var last_ac = $('li[data-li-update-id=' + last_access_id + ']');
+      return (last_ac.length !== 0);
+    }
 
     function parseAndSubmit() {
       var result_list = [];
@@ -96,8 +113,15 @@
           title: title_element.text(),
           urls: urls,
           share_url: SjCtrl.relativeToAbsolute($(element).find('.feed-item-meta > a').attr('href')),
-          pub_date: $(element).find('.feed-item-meta .nus-timestamp').text()
+          share_text: $(element).find('.share-body .commentary').text(),
+          share_title: 'published a new update on LinkedIn',
+          pub_date: $(element).attr('data-li-update-date'),
+          engagement: {
+            'ln_likes': $(element).find('[data-li-num-liked]').attr('data-li-num-liked'),
+            'ln_comments': $(element).find('[data-li-num-commented]').attr('data-li-num-commented')
+          }
         };
+        SjCtrl.log_message(result);
         result_list.push(result);
       });
 
@@ -108,24 +132,9 @@
       done = true;
     }
 
-    function isLastAccessIdPresent() {
-      if (last_access_id === '') {
-        return false;
-      }
-      var last_ac = $('li[data-li-update-id=' + last_access_id + ']'),
-        is_present = last_ac.length !== 0;
-
-      if (is_present) {
-        SjCtrl.log_message('Found ID!! ' + last_access_id)
-      }
-
-      return is_present;
-    }
-
-    if (isLastAccessIdPresent() || feed.length === 0 || view_more.length === 0) {
+    if (isLastAccessIdPresentInPage() || show_more_updates_button.length === 0 || show_more_updates_span.length === 0) {
       parseAndSubmit();
       SjCtrl.done();
-      return;
     } else {
       var observer = new MutationObserver(function(mutations) {
         if (done) {
@@ -139,7 +148,7 @@
             SjCtrl.log_message('triggering click');
             $('.view-more').trigger('click');
             page_count = page_count + 1;
-            if (page_count > max_page_count || isLastAccessIdPresent() || feed.hasClass('done')) {
+            if (page_count > max_page_count || isLastAccessIdPresentInPage() || show_more_updates_button.hasClass('done')) {
               SjCtrl.log_message('Pages loaded');
               observer.disconnect();
               parseAndSubmit();
@@ -155,8 +164,8 @@
         characterData: false
       };
 
-      observer.observe(feed[0], config);
-      view_more.trigger('click');
+      observer.observe(show_more_updates_button[0], config);
+      show_more_updates_span.trigger('click');
     }
   }).run();
 }).call(this);
