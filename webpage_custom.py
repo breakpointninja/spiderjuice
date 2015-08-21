@@ -49,10 +49,10 @@ class JSControllerObject(QObject):
                 response_headers_string += '{}: {}\n'.format(header.data().decode(encoding=HTTP_HEADER_CHARSET), network_reply.rawHeader(header).data().decode(encoding=HTTP_HEADER_CHARSET))
 
             logger.error(self.prepend_id('e_id="{eid};{estr}" url="{url}"\n{req_h}\n{res_h}'.format(eid=error,
-                                                                                                            estr=network_reply.errorString(),
-                                                                                                            url=url_str,
-                                                                                                            req_h=request_headers_string,
-                                                                                                            res_h=response_headers_string)))
+                                                                                                    estr=network_reply.errorString(),
+                                                                                                    url=url_str,
+                                                                                                    req_h=request_headers_string,
+                                                                                                    res_h=response_headers_string)))
         else:
             logger.info('Post successful {}'.format(url_str))
 
@@ -62,7 +62,7 @@ class JSControllerObject(QObject):
             logger.error(self.prepend_id('Invalid State. post_request called when no current job'))
             return
 
-        logger.info("Posting request to {}".format(url))
+        logger.info(self.prepend_id("Posting {} request to {}".format(self.job(), url)))
         req = QNetworkRequest(QUrl(url))
         req.setHeader(QNetworkRequest.ContentTypeHeader, 'application/json')
         network_reply = self.network_manager.post(req, data.encode('UTF-8'))
@@ -111,7 +111,7 @@ class JSControllerObject(QObject):
         self.parent.job_finished.emit()
 
     @pyqtSlot()
-    def abort(self):
+    def abort(self, retry_after_sec=60):
         if not self.parent.current_job:
             logger.error(self.prepend_id('Invalid State. abort called when no current job'))
             return
@@ -119,8 +119,8 @@ class JSControllerObject(QObject):
         logger.error(self.prepend_id('Job aborting {}'.format(self.job())))
         retry_job = self.job().get_retry_job()
         if retry_job.retry <= MAX_RETRIES:
-            logger.info(self.prepend_id('Retrying Job:{}'.format(retry_job)))
-            self.parent.new_job_received.emit(retry_job)
+            logger.info(self.prepend_id('Retrying :{} after {}sec'.format(retry_job, retry_after_sec)))
+            QTimer.singleShot(retry_after_sec * 1000, Qt.VeryCoarseTimer, lambda: self.parent.new_job_received.emit(retry_job))
         else:
             logger.error(self.prepend_id('Max Retries reached:{}'.format(retry_job)))
 
@@ -170,6 +170,9 @@ class WebPageCustom(QWebPage):
             settings.setAttribute(QWebSettings.NotificationsEnabled, False)
             WebPageCustom.global_settings_set = True
 
+    def userAgentForUrl(self, qurl):
+        return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36'
+
     @staticmethod
     def get_js_lib_string():
         if WebPageCustom.js_lib_string_list is None:
@@ -211,7 +214,7 @@ class WebPageCustom(QWebPage):
 
     def timeout(self):
         logger.error(self.control.prepend_id('Job timed out in {}sec - {}'.format(self.current_job.timeout or DEFAULT_JOB_TIMEOUT_SECONDS, self.current_job)))
-        self.control.abort()
+        self.control.abort(retry_after_sec=10)
 
     def reset(self):
         self.current_job = None

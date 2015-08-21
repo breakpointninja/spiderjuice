@@ -1,4 +1,5 @@
 import base64
+from random import randint
 from PyQt5.QtCore import QUrl
 from collections import namedtuple
 import re
@@ -89,6 +90,7 @@ class AccessManager(QNetworkAccessManager):
         error = network_reply.error()
         url = network_reply.url()
         url_str = url.toString()
+        retry_after_sec = 60
         if error != 0:
             if error == QNetworkReply.OperationCanceledError:
                 logger.debug(self.control.prepend_id('Operation cancelled for url {}'.format(url_str)))
@@ -102,14 +104,33 @@ class AccessManager(QNetworkAccessManager):
 
             response_headers_string = 'Response:\n'
             for header in network_reply.rawHeaderList():
-                response_headers_string += '{}: {}\n'.format(header.data().decode(encoding=HTTP_HEADER_CHARSET), network_reply.rawHeader(header).data().decode(encoding=HTTP_HEADER_CHARSET))
+                header_key = header.data().decode(encoding=HTTP_HEADER_CHARSET)
+                header_value = network_reply.rawHeader(header).data().decode(encoding=HTTP_HEADER_CHARSET)
+                if 'Retry-After' == header and header_value.isdigit():
+                    retry_after_sec = int(header_value)
+                response_headers_string += '{}: {}\n'.format(header_key, header_value)
 
             logger.error(self.control.prepend_id('e_id="{eid};{estr}" url="{url}"\n{req_h}\n{res_h}'.format(eid=error,
                                                                                                             estr=network_reply.errorString(),
                                                                                                             url=url_str,
                                                                                                             req_h=request_headers_string,
                                                                                                             res_h=response_headers_string)))
-            self.control.abort()
+            ###############################################
+            # Throttle the retries as lazily as possible
+            ###############################################
+
+            # We go slightly above the recommended value, randomize it a bit and double check the values just in case
+            if retry_after_sec < 1:
+                retry_after_sec = 2
+
+            if retry_after_sec < 100:
+                retry_after_sec = (retry_after_sec * 10) + randint(0, 30)
+
+            # Restrict the retry sec to 1 hour
+            if retry_after_sec > 3600:
+                retry_after_sec = 3600
+
+            self.control.abort(retry_after_sec)
 
     def createRequest(self, operation, request, device=None):
         if not self.control.job():
