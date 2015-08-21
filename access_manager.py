@@ -1,9 +1,9 @@
 import base64
 from random import randint
-from PyQt5.QtCore import QUrl
+from PyQt5.QtCore import QUrl, QTimer, Qt
 from collections import namedtuple
 import re
-from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkProxyFactory, QNetworkProxy, QNetworkRequest, QSslConfiguration, QNetworkReply
+from PyQt5.QtNetwork import QNetworkAccessManager, QNetworkProxyFactory, QNetworkProxy, QNetworkRequest, QSslConfiguration, QNetworkReply, QNetworkCookieJar
 from settings import HTTP_HEADER_CHARSET
 
 import logging
@@ -25,6 +25,11 @@ class ProxyManager(QNetworkProxyFactory):
         return ProxyManager.no_proxy
 
 
+class CookieManager(QNetworkCookieJar):
+    def clear_all_cookies(self):
+        self.setAllCookies([])
+
+
 class AccessManager(QNetworkAccessManager):
     Rule = namedtuple('Rule', ['rule_type', 'rule'])
     _allow = 'allow'
@@ -40,6 +45,18 @@ class AccessManager(QNetworkAccessManager):
         self.setProxyFactory(self.proxy_factory)
         self.proxyAuthenticationRequired.connect(self.proxy_authenticate)
         self.authenticationRequired.connect(self.authenticate)
+        self.cookie_manager = CookieManager()
+        self.setCookieJar(self.cookie_manager)
+        self.clear_cookie_timer = QTimer(self)
+        self.clear_cookie_timer.setTimerType(Qt.VeryCoarseTimer)
+        # Clear cookies every hour
+        self.clear_cookie_timer.setInterval(3600 * 1000)
+        self.clear_cookie_timer.timeout.connect(self.clear_cookies)
+        self.clear_cookies()
+
+    def clear_cookies(self):
+        logger.error(self.control.prepend_id('clearing cookies'))
+        self.cookie_manager.clear_all_cookies()
 
     def authenticate(self, network_proxy, authenticator):
         logger.error(self.control.prepend_id('Proxy Authenticate {}'.format(network_proxy.url())))
