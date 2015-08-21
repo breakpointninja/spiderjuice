@@ -167,6 +167,8 @@ class AccessManager(QNetworkAccessManager):
             proxy_auth_value = b'Basic ' + base64.urlsafe_b64encode(key)
             request.setRawHeader(b'Proxy-Authorization', proxy_auth_value)
             request.setRawHeader(b'Proxy-Connection', b'Keep-Alive')
+            request.setRawHeader(b'X-Crawlera-Cookies', b'disable')
+            request.setRawHeader(b'X-Crawlera-UA', b'desktop')
 
         network_reply = super().createRequest(operation, request, device)
         network_reply.finished.connect(lambda: self.request_finished(network_reply))
