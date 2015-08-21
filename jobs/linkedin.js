@@ -117,8 +117,8 @@
           share_title: 'published a new update on LinkedIn',
           pub_date: $(element).attr('data-li-update-date'),
           engagement: {
-            'ln_likes': $(element).find('[data-li-num-liked]').attr('data-li-num-liked'),
-            'ln_comments': $(element).find('[data-li-num-commented]').attr('data-li-num-commented')
+            'ln_likes': parseInt($(element).find('[data-li-num-liked]').attr('data-li-num-liked')),
+            'ln_comments': parseInt($(element).find('[data-li-num-commented]').attr('data-li-num-commented'))
           }
         };
         SjCtrl.log_message(result);
